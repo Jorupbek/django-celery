@@ -1,0 +1,48 @@
+version: '3.9'
+
+services:
+  redis:
+    image: redis:alpine
+    container_name: redis-celery
+
+  web:
+    build: .
+    restart: always
+    volumes:
+      - .:/app
+    ports:
+      - 8000:8000
+    container_name: django-celery
+    depends_on:
+      - redis
+    
+  celery:
+    restart: always
+    build: .
+    command: celery -A django_tasks worker -l INFO
+    volumes:
+      - .:/app
+    image: web:celery
+    container_name: celery-celery
+    depends_on:
+      - redis
+      - web
+      
+  celery-beat:
+    build: .
+    command: celery -A django_tasks beat -l info
+    volumes:
+      - .:/app
+    container_name: celery-beat-celery
+    depends_on:
+      - redis
+
+  dashboard:
+    build: .
+    command: celery -A django_tasks flower --port=5555 --broker=redis://redis:6379/0 
+    ports:
+      - 5555:5555
+    depends_on:
+      - redis
+      - web
+      - celery
